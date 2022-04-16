@@ -1,0 +1,6 @@
+data/
+audio/
+venv39
+.env*
+__pycache__
+.vscode
