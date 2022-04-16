@@ -40,14 +40,14 @@ class Ping(BaseModel):
 
 
 api = FastAPI()
-api.add_middleware(
-    CORSMiddleware,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# api.add_middleware(
+#     CORSMiddleware,
+#     allow_credentials=True,
+#     allow_methods=["*"],
+#     allow_headers=["*"],
+# )
 
-security = HTTPBasic()
+# security = HTTPBasic()
 
 intents = discord.Intents.default()
 intents.members = False
@@ -77,7 +77,7 @@ async def _spend(ctx):
 
     successfully_spent = spend_coin(ctx.author.display_name)
     if successfully_spent:
-        if os.environ["AUDIO_ENABLED"] == 1:
+        if os.environ["AUDIO_ENABLED"] == "1":
             noise_channel = ctx.author.voice.channel
             if noise_channel is not None:
                 if ctx.voice_client is not None:
@@ -163,7 +163,7 @@ async def _mint(ctx, arg):
             return
 
         await ctx.send(random.choice(responses.ACTION))
-        if os.environ["AUDIO_ENABLED"] == 1:
+        if os.environ["AUDIO_ENABLED"] == "1":
             noise_channel = ctx.author.voice.channel
             if noise_channel is not None:
                 if ctx.voice_client is not None:
@@ -174,7 +174,7 @@ async def _mint(ctx, arg):
         for idx, mention in enumerate(mentions):
             if idx > 2:
                 return
-            if os.environ["AUDIO_ENABLED"] == 1:
+            if os.environ["AUDIO_ENABLED"] == "1":
                 audio_source = discord.FFmpegOpusAudio(
                     "./audio/SPLC-5315_FX_Oneshot_Blacksmith_Metal_Hits_Resonant_Water.wav"
                 )
@@ -191,17 +191,17 @@ async def _scream(ctx):
     if feeling_sassy and "Gold" not in author_roles and "admin" not in author_roles:
         await ctx.send(random.choice(responses.PISSED))
         return
-    if os.environ["AUDIO_ENABLED"] == 1:
+    if os.environ["AUDIO_ENABLED"] == "1":
         noise_channel = ctx.author.voice.channel
-    if noise_channel is not None:
-        if ctx.voice_client is not None:
-            await ctx.voice_client.move_to(noise_channel)
-        else:
-            await noise_channel.connect()
+        if noise_channel is not None:
+            if ctx.voice_client is not None:
+                await ctx.voice_client.move_to(noise_channel)
+            else:
+                await noise_channel.connect()
+        audio_source = discord.FFmpegOpusAudio("./sounds/WilhelmScream.wav")
+        if not ctx.voice_client.is_playing():
+            ctx.voice_client.play(audio_source, after=None)
 
-    audio_source = discord.FFmpegOpusAudio("./sounds/WilhemScream.wav")
-    if not ctx.voice_client.is_playing():
-        ctx.voice_client.play(audio_source, after=None)
     await ctx.send(random.choice(responses.SCREAM))
 
 
@@ -262,7 +262,7 @@ async def interactions(ping: Ping, request: Request):
 @api.on_event("startup")
 async def startup_event():
     test_redis_connection()
-    if os.environ["AUDIO_ENABLED"] == 1:
+    if os.environ["AUDIO_ENABLED"] == "1":
         opus_path = ctypes.util.find_library("opus")
         discord.opus.load_opus(opus_path)
     asyncio.create_task(bot.start(os.environ["DISCORD_BOT_TOKEN"]))
