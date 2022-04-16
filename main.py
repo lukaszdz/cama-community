@@ -17,6 +17,7 @@ from fastapi_cache import caches, close_caches  # type: ignore
 from fastapi_cache.backends.redis import CACHE_KEY, RedisCacheBackend  # type: ignore
 from nacl.signing import VerifyKey
 from pydantic import BaseModel
+from redis import Redis
 
 import responses
 from sheets import (
@@ -38,15 +39,8 @@ class Ping(BaseModel):
     type: int
 
 
-try:
-    CONFIG = dotenv_values(".env")
-except:
-    CONFIG = dict(os.environ)
-
-AUDIO_ENABLED = CONFIG.get("AUDIO_ENABLED") == 1
-
-app = FastAPI()
-app.add_middleware(
+api = FastAPI()
+api.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
     allow_methods=["*"],
@@ -60,6 +54,13 @@ intents.members = False
 
 
 bot = Bot(command_prefix="$", intents=intents)
+
+
+def test_redis_connection():
+    r = Redis.from_url(
+        os.environ["REDIS_URL"], socket_connect_timeout=1
+    )  # short timeout for the test
+    r.ping()
 
 
 def redis_cache():
@@ -76,7 +77,7 @@ async def _spend(ctx):
 
     successfully_spent = spend_coin(ctx.author.display_name)
     if successfully_spent:
-        if AUDIO_ENABLED:
+        if os.environ["AUDIO_ENABLED"] == 1:
             noise_channel = ctx.author.voice.channel
             if noise_channel is not None:
                 if ctx.voice_client is not None:
@@ -162,7 +163,7 @@ async def _mint(ctx, arg):
             return
 
         await ctx.send(random.choice(responses.ACTION))
-        if AUDIO_ENABLED:
+        if os.environ["AUDIO_ENABLED"] == 1:
             noise_channel = ctx.author.voice.channel
             if noise_channel is not None:
                 if ctx.voice_client is not None:
@@ -173,7 +174,7 @@ async def _mint(ctx, arg):
         for idx, mention in enumerate(mentions):
             if idx > 2:
                 return
-            if AUDIO_ENABLED:
+            if os.environ["AUDIO_ENABLED"] == 1:
                 audio_source = discord.FFmpegOpusAudio(
                     "./audio/SPLC-5315_FX_Oneshot_Blacksmith_Metal_Hits_Resonant_Water.wav"
                 )
@@ -190,7 +191,7 @@ async def _scream(ctx):
     if feeling_sassy and "Gold" not in author_roles and "admin" not in author_roles:
         await ctx.send(random.choice(responses.PISSED))
         return
-    if AUDIO_ENABLED:
+    if os.environ["AUDIO_ENABLED"] == 1:
         noise_channel = ctx.author.voice.channel
     if noise_channel is not None:
         if ctx.voice_client is not None:
@@ -198,9 +199,7 @@ async def _scream(ctx):
         else:
             await noise_channel.connect()
 
-    audio_source = discord.FFmpegOpusAudio(
-        "./sounds/WilhemScream.wav"
-    )
+    audio_source = discord.FFmpegOpusAudio("./sounds/WilhemScream.wav")
     if not ctx.voice_client.is_playing():
         ctx.voice_client.play(audio_source, after=None)
     await ctx.send(random.choice(responses.SCREAM))
@@ -216,7 +215,7 @@ async def _hello(ctx):
     await ctx.send("Hello, John")
 
 
-@app.get("/")
+@api.get("/")
 def base():
     return {"message": "Systems online."}
 
@@ -241,7 +240,7 @@ def verify_request_from_discord(
     return False
 
 
-@app.post("/interactions", status_code=200)
+@api.post("/interactions", status_code=200)
 async def interactions(ping: Ping, request: Request):
     request_body = b""
     async for chunk in request.stream():
@@ -250,7 +249,7 @@ async def interactions(ping: Ping, request: Request):
         raw_body=request_body,
         signature=request.headers.get("X-Signature-Ed25519"),
         timestamp=request.headers.get("X-Signature-Timestamp"),
-        client_public_key=str(CONFIG.get("DISCORD_APP_PUBLIC_KEY", "")),
+        client_public_key=os.environ["DISCORD_APP_PUBLIC_KEY"],
     ):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Item not found"
@@ -260,17 +259,19 @@ async def interactions(ping: Ping, request: Request):
         return {"type": InteractionResponseType.PONG}
 
 
-@app.on_event("startup")
+@api.on_event("startup")
 async def startup_event():
-    opus_path = ctypes.util.find_library("opus")
-    discord.opus.load_opus(opus_path)
-    asyncio.create_task(bot.start(CONFIG.get("DISCORD_BOT_TOKEN")))
-    redis_cache_backend = RedisCacheBackend(CONFIG["REDIS_URL"])
+    test_redis_connection()
+    if os.environ["AUDIO_ENABLED"] == 1:
+        opus_path = ctypes.util.find_library("opus")
+        discord.opus.load_opus(opus_path)
+    asyncio.create_task(bot.start(os.environ["DISCORD_BOT_TOKEN"]))
+    redis_cache_backend = RedisCacheBackend(os.environ["REDIS_URL"])
     caches.set(CACHE_KEY, redis_cache_backend)
     print("Backend locked & loaded.")
 
 
-@app.on_event("shutdown")
+@api.on_event("shutdown")
 async def on_shutdown() -> None:
     await close_caches()
 
@@ -279,5 +280,6 @@ if __name__ == "__main__":
     import doctest
 
     doctest.testmod()
+    test_redis_connection()
 
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("main:api", host="0.0.0.0", port=8000, reload=True)

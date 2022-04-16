@@ -13,3 +13,8 @@ chmod +x .git/hooks/pre-commit
 
 Visit this URL to invite this bot to your server
 https://discord.com/api/oauth2/authorize?client_id=964357127005171712&permissions=518633381313&scope=applications.commands%20bot
+
+To easily set config variables
+```bash
+heroku config:set $(cat .env | sed '/^$/d; /#[[:print:]]*$/d')
+```
