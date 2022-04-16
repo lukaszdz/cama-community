@@ -183,6 +183,29 @@ async def _mint(ctx, arg):
             distribute_coin_to_camarron_with_name(mention.display_name)
 
 
+@bot.command(name="scream")
+async def _scream(ctx):
+    author_roles = [r.name for r in ctx.author.roles]
+    feeling_sassy = random.randint(0, 100) > 50
+    if feeling_sassy and "Gold" not in author_roles and "admin" not in author_roles:
+        await ctx.send(random.choice(responses.PISSED))
+        return
+    if AUDIO_ENABLED:
+        noise_channel = ctx.author.voice.channel
+    if noise_channel is not None:
+        if ctx.voice_client is not None:
+            await ctx.voice_client.move_to(noise_channel)
+        else:
+            await noise_channel.connect()
+
+    audio_source = discord.FFmpegOpusAudio(
+        "./sounds/WilhemScream.wav"
+    )
+    if not ctx.voice_client.is_playing():
+        ctx.voice_client.play(audio_source, after=None)
+    await ctx.send(random.choice(responses.SCREAM))
+
+
 @bot.command(name="ping")
 async def _ping(ctx):
     await ctx.send(random.choice(responses.READY))

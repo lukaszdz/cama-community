@@ -52,3 +52,10 @@ PISSED = [
     "And now for your first lesson. Hahahaha.",
     "Do you seek knowledge of time travel?",
 ]
+
+SCREAM = [
+    "I have no mouth, and I must scream!",
+    "Aiiieeeeeeeeeeeeee!",
+    "Ahhhhhhhhhhhhhhhhhhhhh!",
+    "COGITO ERGO CLAMO",
+]
