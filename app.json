@@ -1,0 +1,20 @@
+{
+  "name": "Camaraderous Community",
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "hobby"
+    }
+  },
+  "addons": ["heroku-redis:hobby-dev"],
+  "environments": {
+    "review": {
+      "addons": ["heroku-redis:hobby-dev"]
+    }
+  },
+  "buildpacks": [
+    {
+      "url": "heroku/python"
+    }
+  ]
+}
