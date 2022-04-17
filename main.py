@@ -96,6 +96,43 @@ async def _spend(ctx):
         await ctx.send("Insufficient JopaCoin(s) for transaction.")
 
 
+@bot.command(name="tip")
+async def _tip(ctx):
+    author_roles = [r.name for r in ctx.author.roles]
+    feeling_sassy = random.randint(0, 100) > 95
+    if feeling_sassy and "Gold" not in author_roles and "admin" not in author_roles:
+        await ctx.send(random.choice(responses.PISSED))
+        return
+    mentions = ctx.message.mentions
+    if len(mentions) == 0:
+        successfully_spent = spend_coin(ctx.author.display_name)
+        await ctx.send("You tipped nobody, and lost a coin! XD")
+        return
+    if len(mentions) > 1:
+        await ctx.send("You can only tip a JopaCoin to one person!")
+        return
+    else:
+        successfully_spent = spend_coin(ctx.author.display_name)
+        if successfully_spent:
+            mention = mentions[0]
+            distribute_coin_to_camarron_with_name(mention.display_name)
+            if os.environ["AUDIO_ENABLED"] == "1":
+                noise_channel = ctx.author.voice.channel
+                if noise_channel is not None:
+                    if ctx.voice_client is not None:
+                        await ctx.voice_client.move_to(noise_channel)
+                    else:
+                        await noise_channel.connect()
+                audio_source = discord.FFmpegOpusAudio(
+                    "./audio/CashRegisterOpen_SFXB.2496.wav"
+                )
+                if not ctx.voice_client.is_playing():
+                    ctx.voice_client.play(audio_source, after=None)
+            await ctx.send(f"Tipped {mention} a JopaCoin!")
+        else:
+            await ctx.send("Insufficient JopaCoin(s) for transaction.")
+
+
 @bot.command(name="reserves")
 async def _reserves(ctx):
     author_roles = [r.name for r in ctx.author.roles]
