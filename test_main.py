@@ -6,8 +6,6 @@ from unittest import mock
 import pytest
 from fastapi.testclient import TestClient
 
-from main import api
-
 
 @pytest.fixture(autouse=True)
 def mock_settings_env_vars():
@@ -17,12 +15,15 @@ def mock_settings_env_vars():
             "REDIS_URL": "redis://",
             "AUDIO_ENABLED": "0",
             "DISCORD_BOT_TOKEN": "this-is-a-mock-token",
+            "BOT_COMMAND_PREFIX": "?",
         },
     ):
         yield
 
 
 def test_read_main():
+    from main import api
+
     client = TestClient(api)
 
     response = client.get("/")

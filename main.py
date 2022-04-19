@@ -2,29 +2,32 @@
 
 import asyncio
 import ctypes
+import logging
 import os
 import os.path
 import random
+import string
+import time
+from logging.config import dictConfig
 
 import discord  # type: ignore
 import uvicorn  # type: ignore
 from discord.ext.commands import Bot  # type: ignore
-from dotenv import dotenv_values
-from fastapi import FastAPI, HTTPException, Request, status  # type: ignore
-from fastapi.middleware.cors import CORSMiddleware  # type: ignore
-from fastapi.security import HTTPBasic
+from fastapi import FastAPI, Request  # type: ignore
 from fastapi_cache import caches, close_caches  # type: ignore
 from fastapi_cache.backends.redis import CACHE_KEY, RedisCacheBackend  # type: ignore
-from nacl.signing import VerifyKey
 from pydantic import BaseModel
 from redis import Redis
 
 import responses
+from log import log_config
 from sheets import (
     distribute_coin_to_camarron_with_name,
     get_balance_for_name,
     spend_coin,
 )
+
+dictConfig(log_config)
 
 
 class InteractionType:
@@ -39,21 +42,41 @@ class Ping(BaseModel):
     type: int
 
 
-api = FastAPI()
-# api.add_middleware(
-#     CORSMiddleware,
-#     allow_credentials=True,
-#     allow_methods=["*"],
-#     allow_headers=["*"],
-# )
+api = FastAPI(debug=True)
+logger = logging.getLogger("cama-logger")
 
-# security = HTTPBasic()
+
+@api.middleware("http")
+async def add_process_time_header(request: Request, call_next):
+    idem = "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
+    logger.info(f"rid={idem} start request path={request.url.path}")
+    start_time = time.time()
+    response = await call_next(request)
+    process_time = time.time() - start_time
+    formatted_process_time = "{0:.2f}".format(process_time)
+    logger.info(
+        f"rid={idem} completed_in={formatted_process_time}ms status_code={response.status_code}"
+    )
+    response.headers["X-Process-Time"] = str(process_time)
+    return response
+
 
 intents = discord.Intents.default()
 intents.members = False
 
 
-bot = Bot(command_prefix="$", intents=intents)
+bot = Bot(command_prefix=os.environ["BOT_COMMAND_PREFIX"].strip(), intents=intents)
+
+
+@bot.check
+async def debugging_middleware(ctx):
+    logger.info(f"{ctx.author.name} requested {ctx.invoked_with} from {ctx.me.name}")
+    return True
+
+
+@bot.event
+async def on_ready():
+    logger.info(f"Logged in as {bot.user.name}")
 
 
 def test_redis_connection():
@@ -67,6 +90,42 @@ def redis_cache():
     return caches.get(CACHE_KEY)
 
 
+async def make_noise_in_current_channel(context, sound_file):
+    try:
+        noise_channel = context.author.voice.channel
+        if noise_channel is not None:
+            if context.voice_client is not None:
+                await context.voice_client.move_to(noise_channel)
+            else:
+                await noise_channel.connect()
+
+        audio_source = discord.FFmpegOpusAudio(sound_file)
+        if not context.voice_client.is_playing():
+            context.voice_client.play(audio_source, after=None)
+    except Exception as e:
+        logger.warn(f"Error playing sound file: {str(e)}")
+
+
+async def play_cash_register(context):
+    await make_noise_in_current_channel(
+        context, "./sounds/CashRegisterOpen_SFXB.2496.wav"
+    )
+
+
+async def play_blacksmith(context):
+    await make_noise_in_current_channel(
+        context,
+        "./sounds/SPLC-5315_FX_Oneshot_Blacksmith_Metal_Hits_Resonant_Water.wav",
+    )
+
+
+async def play_scream(context):
+    await make_noise_in_current_channel(
+        context,
+        "./sounds/WilhelmScream.wav",
+    )
+
+
 @bot.command(name="spend")
 async def _spend(ctx):
     author_roles = [r.name for r in ctx.author.roles]
@@ -77,20 +136,7 @@ async def _spend(ctx):
 
     successfully_spent = spend_coin(ctx.author.display_name)
     if successfully_spent:
-        if os.environ["AUDIO_ENABLED"] == "1":
-            noise_channel = ctx.author.voice.channel
-            if noise_channel is not None:
-                if ctx.voice_client is not None:
-                    await ctx.voice_client.move_to(noise_channel)
-                else:
-                    await noise_channel.connect()
-
-            audio_source = discord.FFmpegOpusAudio(
-                "./audio/CashRegisterOpen_SFXB.2496.wav"
-            )
-            if not ctx.voice_client.is_playing():
-                ctx.voice_client.play(audio_source, after=None)
-
+        await play_cash_register(ctx)
         await ctx.send("Transaction complete.")
     else:
         await ctx.send("Insufficient JopaCoin(s) for transaction.")
@@ -116,18 +162,7 @@ async def _tip(ctx):
         if successfully_spent:
             mention = mentions[0]
             distribute_coin_to_camarron_with_name(mention.display_name)
-            if os.environ["AUDIO_ENABLED"] == "1":
-                noise_channel = ctx.author.voice.channel
-                if noise_channel is not None:
-                    if ctx.voice_client is not None:
-                        await ctx.voice_client.move_to(noise_channel)
-                    else:
-                        await noise_channel.connect()
-                audio_source = discord.FFmpegOpusAudio(
-                    "./audio/CashRegisterOpen_SFXB.2496.wav"
-                )
-                if not ctx.voice_client.is_playing():
-                    ctx.voice_client.play(audio_source, after=None)
+            await play_cash_register(ctx)
             await ctx.send(f"Tipped {mention} a JopaCoin!")
         else:
             await ctx.send("Insufficient JopaCoin(s) for transaction.")
@@ -200,25 +235,12 @@ async def _mint(ctx, arg):
             return
 
         await ctx.send(random.choice(responses.ACTION))
-        if os.environ["AUDIO_ENABLED"] == "1":
-            noise_channel = ctx.author.voice.channel
-            if noise_channel is not None:
-                if ctx.voice_client is not None:
-                    await ctx.voice_client.move_to(noise_channel)
-                else:
-                    await noise_channel.connect()
 
         for idx, mention in enumerate(mentions):
             if idx > 2:
                 return
-            if os.environ["AUDIO_ENABLED"] == "1":
-                audio_source = discord.FFmpegOpusAudio(
-                    "./audio/SPLC-5315_FX_Oneshot_Blacksmith_Metal_Hits_Resonant_Water.wav"
-                )
-                if not ctx.voice_client.is_playing():
-                    ctx.voice_client.play(audio_source, after=None)
-
             distribute_coin_to_camarron_with_name(mention.display_name)
+            await play_blacksmith(ctx)
 
 
 @bot.command(name="scream")
@@ -228,17 +250,8 @@ async def _scream(ctx):
     if feeling_sassy and "Gold" not in author_roles and "admin" not in author_roles:
         await ctx.send(random.choice(responses.PISSED))
         return
-    if os.environ["AUDIO_ENABLED"] == "1":
-        noise_channel = ctx.author.voice.channel
-        if noise_channel is not None:
-            if ctx.voice_client is not None:
-                await ctx.voice_client.move_to(noise_channel)
-            else:
-                await noise_channel.connect()
-        audio_source = discord.FFmpegOpusAudio("./sounds/WilhelmScream.wav")
-        if not ctx.voice_client.is_playing():
-            ctx.voice_client.play(audio_source, after=None)
 
+    await play_scream(ctx)
     await ctx.send(random.choice(responses.SCREAM))
 
 
@@ -252,64 +265,55 @@ async def _hello(ctx):
     await ctx.send("Hello, John")
 
 
+@bot.command(name="hi")
+async def _hello(ctx):
+    await ctx.send("Well, hi there")
+
+
 @api.get("/")
 def base():
     return {"message": "Systems online."}
 
 
-##
-# Makes sure the request was sent from Discord
-# https://discord.com/developers/docs/interactions/receiving-and-responding#security-and-authorization
-#
-def verify_request_from_discord(
-    raw_body: bytes, signature: str, timestamp: str, client_public_key: str
-) -> bool:
-    if not signature or not timestamp or not client_public_key:
-        return False
-
-    message = timestamp.encode() + raw_body
-    try:
-        verify_key = VerifyKey(bytes.fromhex(client_public_key))
-        verify_key.verify(message, bytes.fromhex(signature))
-        return True
-    except Exception as exception:
-        print(exception)
-    return False
-
-
-@api.post("/interactions", status_code=200)
-async def interactions(ping: Ping, request: Request):
-    request_body = b""
-    async for chunk in request.stream():
-        request_body += chunk
-    if not verify_request_from_discord(
-        raw_body=request_body,
-        signature=request.headers.get("X-Signature-Ed25519"),
-        timestamp=request.headers.get("X-Signature-Timestamp"),
-        client_public_key=os.environ["DISCORD_APP_PUBLIC_KEY"],
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Item not found"
-        )
-
+@api.post("/")
+def base(ping):
     if ping.type == InteractionType.PING:
         return {"type": InteractionResponseType.PONG}
+    else:
+        return {
+            "type": 4,
+            "data": {
+                "tts": False,
+                "content": "Congrats on sending your command!",
+                "embeds": [],
+                "allowed_mentions": {"parse": []},
+            },
+        }
+
+
+async def load_opus():
+    try:
+        opus_path = ctypes.util.find_library("opus")
+        discord.opus.load_opus(opus_path)
+    except Exception:
+        logger.warn("Failed to initialize opus (for playing audio)")
 
 
 @api.on_event("startup")
 async def startup_event():
-    test_redis_connection()
-    if os.environ["AUDIO_ENABLED"] == "1":
-        opus_path = ctypes.util.find_library("opus")
-        discord.opus.load_opus(opus_path)
     asyncio.create_task(bot.start(os.environ["DISCORD_BOT_TOKEN"]))
+    await load_opus()
+    test_redis_connection()
     redis_cache_backend = RedisCacheBackend(os.environ["REDIS_URL"])
     caches.set(CACHE_KEY, redis_cache_backend)
-    print("Backend locked & loaded.")
+
+    await asyncio.sleep(4)  # optional sleep for established connection with discord
+    logger.info(f"{bot.user} has connected to Discord!")
 
 
 @api.on_event("shutdown")
 async def on_shutdown() -> None:
+    logger.info("Shutting down.")
     await close_caches()
 
 
