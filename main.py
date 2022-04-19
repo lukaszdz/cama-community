@@ -12,7 +12,7 @@ from logging.config import dictConfig
 
 import discord  # type: ignore
 import uvicorn  # type: ignore
-from discord.ext.commands import Bot  # type: ignore
+from discord.ext.commands import Bot, check  # type: ignore
 from fastapi import FastAPI, HTTPException, Request, status  # type: ignore
 from fastapi_cache import caches, close_caches  # type: ignore
 from fastapi_cache.backends.redis import CACHE_KEY, RedisCacheBackend  # type: ignore
@@ -63,6 +63,12 @@ api.add_middleware(
 logger = logging.getLogger("foo-logger")
 
 
+def debugging_middleware(ctx):
+    logger.info(f"{ctx.author.name} requested {ctx.invoked_with} from {ctx.me.name}")
+    print(f"{ctx.author.name} requested {ctx.invoked_with} from {ctx.me.name}")
+    return True
+
+
 @api.middleware("http")
 async def add_process_time_header(request: Request, call_next):
     idem = "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
@@ -97,6 +103,7 @@ def redis_cache():
 
 
 @bot.command(name="spend")
+@check(debugging_middleware)
 async def _spend(ctx):
     author_roles = [r.name for r in ctx.author.roles]
     feeling_sassy = random.randint(0, 100) > 95
@@ -126,6 +133,7 @@ async def _spend(ctx):
 
 
 @bot.command(name="tip")
+@check(debugging_middleware)
 async def _tip(ctx):
     author_roles = [r.name for r in ctx.author.roles]
     feeling_sassy = random.randint(0, 100) > 95
@@ -163,6 +171,7 @@ async def _tip(ctx):
 
 
 @bot.command(name="reserves")
+@check(debugging_middleware)
 async def _reserves(ctx):
     author_roles = [r.name for r in ctx.author.roles]
     feeling_sassy = random.randint(0, 100) > 95
@@ -174,6 +183,7 @@ async def _reserves(ctx):
 
 
 @bot.command(name="balance")
+@check(debugging_middleware)
 async def _balance(ctx):
     author_roles = [r.name for r in ctx.author.roles]
     feeling_sassy = random.randint(0, 100) > 95
@@ -191,6 +201,7 @@ async def _balance(ctx):
 
 
 @bot.command(name="mint")
+@check(debugging_middleware)
 async def _mint(ctx, arg):
     cache = caches.get(CACHE_KEY)
     author_command_cache_key = f"command-mint-{ctx.author.display_name}"
@@ -256,6 +267,7 @@ async def _mint(ctx, arg):
 
 
 @bot.command(name="scream")
+@check(debugging_middleware)
 async def _scream(ctx):
     author_roles = [r.name for r in ctx.author.roles]
     feeling_sassy = random.randint(0, 100) > 50
@@ -277,11 +289,13 @@ async def _scream(ctx):
 
 
 @bot.command(name="ping")
+@check(debugging_middleware)
 async def _ping(ctx):
     await ctx.send(random.choice(responses.READY))
 
 
 @bot.command(name="hello")
+@check(debugging_middleware)
 async def _hello(ctx):
     await ctx.send("Hello, John")
 
@@ -332,11 +346,11 @@ async def interactions(ping: Ping, request: Request):
 
 @api.on_event("startup")
 async def startup_event():
+    asyncio.create_task(bot.start(os.environ["DISCORD_BOT_TOKEN"]))
     test_redis_connection()
     if os.environ["AUDIO_ENABLED"] == "1":
         opus_path = ctypes.util.find_library("opus")
         discord.opus.load_opus(opus_path)
-    asyncio.create_task(bot.start(os.environ["DISCORD_BOT_TOKEN"]))
     redis_cache_backend = RedisCacheBackend(os.environ["REDIS_URL"])
     caches.set(CACHE_KEY, redis_cache_backend)
     print("Backend locked & loaded.")
