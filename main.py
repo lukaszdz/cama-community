@@ -67,7 +67,7 @@ intents = discord.Intents.default()
 intents.members = False
 
 
-bot = Bot(command_prefix=os.environ["BOT_COMMAND_PREFIX"], intents=intents)
+bot = Bot(command_prefix=os.environ["BOT_COMMAND_PREFIX"].strip(), intents=intents)
 
 
 @bot.check
@@ -189,15 +189,15 @@ async def _balance(ctx):
 
 @bot.command(name="mint")
 async def _mint(ctx, arg):
-    cache = caches.get(CACHE_KEY)
-    author_command_cache_key = f"command-mint-{ctx.author.display_name}"
-    in_cache = await cache.get(author_command_cache_key)
-    if not in_cache:
-        expiration_seconds = 60 * 12
-        await cache.set(author_command_cache_key, "value", expire=expiration_seconds)
-    else:
-        await ctx.send(random.choice(responses.WHAT))
-        return
+    # cache = caches.get(CACHE_KEY)
+    # author_command_cache_key = f"command-mint-{ctx.author.display_name}"
+    # in_cache = await cache.get(author_command_cache_key)
+    # if not in_cache:
+    #     expiration_seconds = 60 * 12
+    #     await cache.set(author_command_cache_key, "value", expire=expiration_seconds)
+    # else:
+    #     await ctx.send(random.choice(responses.WHAT))
+    #     return
 
     author_roles = [r.name for r in ctx.author.roles]
     feeling_sassy = random.randint(0, 100) > 70
@@ -346,17 +346,18 @@ async def interactions(ping: Ping, request: Request):
 @api.on_event("startup")
 async def startup_event():
     asyncio.create_task(bot.start(os.environ["DISCORD_BOT_TOKEN"]))
-    test_redis_connection()
     if os.environ["AUDIO_ENABLED"] == "1":
         opus_path = ctypes.util.find_library("opus")
         discord.opus.load_opus(opus_path)
-    redis_cache_backend = RedisCacheBackend(os.environ["REDIS_URL"])
-    caches.set(CACHE_KEY, redis_cache_backend)
+    # test_redis_connection()
+    # redis_cache_backend = RedisCacheBackend(os.environ["REDIS_URL"])
+    # caches.set(CACHE_KEY, redis_cache_backend)
 
 
 @api.on_event("shutdown")
 async def on_shutdown() -> None:
-    await close_caches()
+    logger.warn("Shutting down.")
+    # await close_caches()
 
 
 if __name__ == "__main__":
