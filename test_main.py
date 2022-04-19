@@ -17,6 +17,7 @@ def mock_settings_env_vars():
             "REDIS_URL": "redis://",
             "AUDIO_ENABLED": "0",
             "DISCORD_BOT_TOKEN": "this-is-a-mock-token",
+            "BOT_COMMAND_PREFIX": "?",
         },
     ):
         yield

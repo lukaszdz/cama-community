@@ -19,6 +19,7 @@ from fastapi_cache.backends.redis import CACHE_KEY, RedisCacheBackend  # type: i
 from nacl.signing import VerifyKey
 from pydantic import BaseModel
 from redis import Redis
+from fastapi.middleware.cors import CORSMiddleware
 
 import responses
 from log import log_config
@@ -43,14 +44,21 @@ class Ping(BaseModel):
     type: int
 
 
+# allowed_origins = [
+#     "http://localhost:8000",
+#     "https://localhost:8000",
+#     "http://0.0.0.0:8000",
+#     "https://0.0.0.0:8000",
+# ]
+
 api = FastAPI(debug=True)
-# api.add_middleware(
-#     CORSMiddleware,
-#     allow_credentials=True,
-#     allow_methods=["*"],
-#     allow_headers=["*"],
-# )
-# security = HTTPBasic()
+api.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    # allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 logger = logging.getLogger("foo-logger")
 
