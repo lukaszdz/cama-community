@@ -5,19 +5,19 @@ import ctypes
 import os
 import os.path
 import random
-
+import time
+import string
 import discord  # type: ignore
 import uvicorn  # type: ignore
 from discord.ext.commands import Bot  # type: ignore
-from dotenv import dotenv_values
 from fastapi import FastAPI, HTTPException, Request, status  # type: ignore
-from fastapi.middleware.cors import CORSMiddleware  # type: ignore
-from fastapi.security import HTTPBasic
 from fastapi_cache import caches, close_caches  # type: ignore
 from fastapi_cache.backends.redis import CACHE_KEY, RedisCacheBackend  # type: ignore
 from nacl.signing import VerifyKey
 from pydantic import BaseModel
 from redis import Redis
+from log import log_config
+import logging
 
 import responses
 from sheets import (
@@ -25,6 +25,10 @@ from sheets import (
     get_balance_for_name,
     spend_coin,
 )
+from logging.config import dictConfig
+
+
+dictConfig(log_config)
 
 
 class InteractionType:
@@ -39,15 +43,33 @@ class Ping(BaseModel):
     type: int
 
 
-api = FastAPI()
+api = FastAPI(debug=True)
 # api.add_middleware(
 #     CORSMiddleware,
 #     allow_credentials=True,
 #     allow_methods=["*"],
 #     allow_headers=["*"],
 # )
-
 # security = HTTPBasic()
+
+logger = logging.getLogger("foo-logger")
+
+
+@api.middleware("http")
+async def add_process_time_header(request: Request, call_next):
+    idem = "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
+    logger.info(f"rid={idem} start request path={request.url.path}")
+    logger.debug("This is test")
+    start_time = time.time()
+    response = await call_next(request)
+    process_time = time.time() - start_time
+    formatted_process_time = "{0:.2f}".format(process_time)
+    logger.info(
+        f"rid={idem} completed_in={formatted_process_time}ms status_code={response.status_code}"
+    )
+    response.headers["X-Process-Time"] = str(process_time)
+    return response
+
 
 intents = discord.Intents.default()
 intents.members = False
@@ -259,6 +281,10 @@ async def _hello(ctx):
 
 @api.get("/")
 def base():
+    logger.info("logging from the root logger")
+    logger.debug("logging from the root logger!")
+    logger.warn("logging from the root logger!!")
+    logger.error("logging from the root logger!!!")
     return {"message": "Systems online."}
 
 
