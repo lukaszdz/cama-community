@@ -12,7 +12,10 @@ chmod +x .git/hooks/pre-commit
 ```
 
 Visit this URL to invite this bot to your server
-https://discord.com/api/oauth2/authorize?client_id=964357127005171712&permissions=518633381313&scope=applications.commands%20bot
+Dev:
+# https://discord.com/api/oauth2/authorize?client_id=964357127005171712&permissions=518633381313&scope=applications.commands%20bot
+Staging
+# https://discord.com/api/oauth2/authorize?client_id=965707277673844776&permissions=380154010944&redirect_uri=https%3A%2F%2Fcama-community-staging.herokuapp.com%2Fdiscord&response_type=code&scope=applications.commands%20bot
 
 To easily set config variables
 ```bash

@@ -201,24 +201,29 @@ async def _mint(ctx, arg):
 
         await ctx.send(random.choice(responses.ACTION))
         if os.environ["AUDIO_ENABLED"] == "1":
-            noise_channel = ctx.author.voice.channel
-            if noise_channel is not None:
-                if ctx.voice_client is not None:
-                    await ctx.voice_client.move_to(noise_channel)
-                else:
-                    await noise_channel.connect()
+            try:
+                noise_channel = ctx.author.voice.channel
+                if noise_channel is not None:
+                    if ctx.voice_client is not None:
+                        await ctx.voice_client.move_to(noise_channel)
+                    else:
+                        await noise_channel.connect()
+            except Exception:
+                print("Error playing audio")
 
         for idx, mention in enumerate(mentions):
             if idx > 2:
                 return
-            if os.environ["AUDIO_ENABLED"] == "1":
-                audio_source = discord.FFmpegOpusAudio(
-                    "./audio/SPLC-5315_FX_Oneshot_Blacksmith_Metal_Hits_Resonant_Water.wav"
-                )
-                if not ctx.voice_client.is_playing():
-                    ctx.voice_client.play(audio_source, after=None)
-
             distribute_coin_to_camarron_with_name(mention.display_name)
+            try:
+                if os.environ["AUDIO_ENABLED"] == "1":
+                    audio_source = discord.FFmpegOpusAudio(
+                        "./audio/SPLC-5315_FX_Oneshot_Blacksmith_Metal_Hits_Resonant_Water.wav"
+                    )
+                    if not ctx.voice_client.is_playing():
+                        ctx.voice_client.play(audio_source, after=None)
+            except Exception:
+                print("Error playing audio")
 
 
 @bot.command(name="scream")
