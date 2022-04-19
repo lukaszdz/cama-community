@@ -2,11 +2,14 @@
 
 import asyncio
 import ctypes
+import logging
 import os
 import os.path
 import random
-import time
 import string
+import time
+from logging.config import dictConfig
+
 import discord  # type: ignore
 import uvicorn  # type: ignore
 from discord.ext.commands import Bot  # type: ignore
@@ -16,17 +19,14 @@ from fastapi_cache.backends.redis import CACHE_KEY, RedisCacheBackend  # type: i
 from nacl.signing import VerifyKey
 from pydantic import BaseModel
 from redis import Redis
-from log import log_config
-import logging
 
 import responses
+from log import log_config
 from sheets import (
     distribute_coin_to_camarron_with_name,
     get_balance_for_name,
     spend_coin,
 )
-from logging.config import dictConfig
-
 
 dictConfig(log_config)
 
