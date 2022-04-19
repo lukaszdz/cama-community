@@ -14,12 +14,12 @@ import discord  # type: ignore
 import uvicorn  # type: ignore
 from discord.ext.commands import Bot, check  # type: ignore
 from fastapi import FastAPI, HTTPException, Request, status  # type: ignore
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi_cache import caches, close_caches  # type: ignore
 from fastapi_cache.backends.redis import CACHE_KEY, RedisCacheBackend  # type: ignore
 from nacl.signing import VerifyKey
 from pydantic import BaseModel
 from redis import Redis
-from fastapi.middleware.cors import CORSMiddleware
 
 import responses
 from log import log_config
@@ -44,29 +44,8 @@ class Ping(BaseModel):
     type: int
 
 
-# allowed_origins = [
-#     "http://localhost:8000",
-#     "https://localhost:8000",
-#     "http://0.0.0.0:8000",
-#     "https://0.0.0.0:8000",
-# ]
-
 api = FastAPI(debug=True)
-api.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    # allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-logger = logging.getLogger("foo-logger")
-
-
-def debugging_middleware(ctx):
-    logger.info(f"{ctx.author.name} requested {ctx.invoked_with} from {ctx.me.name}")
-    print(f"{ctx.author.name} requested {ctx.invoked_with} from {ctx.me.name}")
-    return True
+logger = logging.getLogger("debug-logger")
 
 
 @api.middleware("http")
@@ -91,6 +70,18 @@ intents.members = False
 bot = Bot(command_prefix=os.environ["BOT_COMMAND_PREFIX"], intents=intents)
 
 
+@bot.check
+async def debugging_middleware(ctx):
+    logger.info(f"{ctx.author.name} requested {ctx.invoked_with} from {ctx.me.name}")
+    print(f"{ctx.author.name} requested {ctx.invoked_with} from {ctx.me.name}")
+    return True
+
+
+@bot.event
+async def on_ready():
+    logger.info(f"Logged in as {bot.user.name}")
+
+
 def test_redis_connection():
     r = Redis.from_url(
         os.environ["REDIS_URL"], socket_connect_timeout=1
@@ -103,7 +94,6 @@ def redis_cache():
 
 
 @bot.command(name="spend")
-@check(debugging_middleware)
 async def _spend(ctx):
     author_roles = [r.name for r in ctx.author.roles]
     feeling_sassy = random.randint(0, 100) > 95
@@ -133,7 +123,6 @@ async def _spend(ctx):
 
 
 @bot.command(name="tip")
-@check(debugging_middleware)
 async def _tip(ctx):
     author_roles = [r.name for r in ctx.author.roles]
     feeling_sassy = random.randint(0, 100) > 95
@@ -171,7 +160,6 @@ async def _tip(ctx):
 
 
 @bot.command(name="reserves")
-@check(debugging_middleware)
 async def _reserves(ctx):
     author_roles = [r.name for r in ctx.author.roles]
     feeling_sassy = random.randint(0, 100) > 95
@@ -183,7 +171,6 @@ async def _reserves(ctx):
 
 
 @bot.command(name="balance")
-@check(debugging_middleware)
 async def _balance(ctx):
     author_roles = [r.name for r in ctx.author.roles]
     feeling_sassy = random.randint(0, 100) > 95
@@ -201,7 +188,6 @@ async def _balance(ctx):
 
 
 @bot.command(name="mint")
-@check(debugging_middleware)
 async def _mint(ctx, arg):
     cache = caches.get(CACHE_KEY)
     author_command_cache_key = f"command-mint-{ctx.author.display_name}"
@@ -267,7 +253,6 @@ async def _mint(ctx, arg):
 
 
 @bot.command(name="scream")
-@check(debugging_middleware)
 async def _scream(ctx):
     author_roles = [r.name for r in ctx.author.roles]
     feeling_sassy = random.randint(0, 100) > 50
@@ -289,13 +274,11 @@ async def _scream(ctx):
 
 
 @bot.command(name="ping")
-@check(debugging_middleware)
 async def _ping(ctx):
     await ctx.send(random.choice(responses.READY))
 
 
 @bot.command(name="hello")
-@check(debugging_middleware)
 async def _hello(ctx):
     await ctx.send("Hello, John")
 
@@ -303,6 +286,22 @@ async def _hello(ctx):
 @api.get("/")
 def base():
     return {"message": "Systems online."}
+
+
+@api.post("/")
+def base(ping):
+    if ping.type == InteractionType.PING:
+        return {"type": InteractionResponseType.PONG}
+    else:
+        return {
+            "type": 4,
+            "data": {
+                "tts": False,
+                "content": "Congrats on sending your command!",
+                "embeds": [],
+                "allowed_mentions": {"parse": []},
+            },
+        }
 
 
 ##
@@ -353,7 +352,6 @@ async def startup_event():
         discord.opus.load_opus(opus_path)
     redis_cache_backend = RedisCacheBackend(os.environ["REDIS_URL"])
     caches.set(CACHE_KEY, redis_cache_backend)
-    print("Backend locked & loaded.")
 
 
 @api.on_event("shutdown")
