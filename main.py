@@ -281,10 +281,6 @@ async def _hello(ctx):
 
 @api.get("/")
 def base():
-    logger.info("logging from the root logger")
-    logger.debug("logging from the root logger!")
-    logger.warn("logging from the root logger!!")
-    logger.error("logging from the root logger!!!")
     return {"message": "Systems online."}
 
 
