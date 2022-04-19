@@ -345,6 +345,7 @@ async def interactions(ping: Ping, request: Request):
 
 @api.on_event("startup")
 async def startup_event():
+    logging.basicConfig(level=logging.DEBUG)
     asyncio.create_task(bot.start(os.environ["DISCORD_BOT_TOKEN"]))
     if os.environ["AUDIO_ENABLED"] == "1":
         opus_path = ctypes.util.find_library("opus")
