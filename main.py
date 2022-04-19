@@ -59,7 +59,6 @@ logger = logging.getLogger("foo-logger")
 async def add_process_time_header(request: Request, call_next):
     idem = "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
     logger.info(f"rid={idem} start request path={request.url.path}")
-    logger.debug("This is test")
     start_time = time.time()
     response = await call_next(request)
     process_time = time.time() - start_time
@@ -75,7 +74,7 @@ intents = discord.Intents.default()
 intents.members = False
 
 
-bot = Bot(command_prefix="$", intents=intents)
+bot = Bot(command_prefix=os.environ["BOT_COMMAND_PREFIX"], intents=intents)
 
 
 def test_redis_connection():
