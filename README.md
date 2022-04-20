@@ -16,6 +16,8 @@ Dev:
 # https://discord.com/api/oauth2/authorize?client_id=964357127005171712&permissions=518633381313&scope=applications.commands%20bot
 Staging
 # https://discord.com/api/oauth2/authorize?client_id=965707277673844776&permissions=517593225536&scope=applications.commands%20bot
+Prod
+# https://discord.com/api/oauth2/authorize?client_id=966401418451910736&permissions=517593357632&scope=applications.commands%20bot
 
 To easily set config variables
 ```bash
