@@ -323,4 +323,7 @@ if __name__ == "__main__":
     doctest.testmod()
     test_redis_connection()
 
-    uvicorn.run("main:api", host="0.0.0.0", port=8000, reload=True)
+    if os.environ.get("ENV") == "prod":
+        uvicorn.run("main:api", host="0.0.0.0", port=8001, reload=True)
+    else:
+        uvicorn.run("main:api", host="0.0.0.0", port=8000, reload=True)

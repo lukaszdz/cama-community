@@ -1,5 +1,6 @@
 source .env-staging
 scp -i $STAGING_PKEY .env-staging $STAGING_HOST:~/
+scp -i $STAGING_PKEY .env-prod $STAGING_HOST:~/
 
 $SSH_CONNECT 'bash -s' <<'ENDSSH'
     sudo apt update
