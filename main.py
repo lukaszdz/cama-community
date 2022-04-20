@@ -21,6 +21,7 @@ from redis import Redis
 
 import responses
 from log import log_config
+from meme import build_meme, find_meme
 from sheets import (
     distribute_coin_to_camarron_with_name,
     get_balance_for_name,
@@ -268,6 +269,37 @@ async def _hello(ctx):
 @bot.command(name="hi")
 async def _hello(ctx):
     await ctx.send("Well, hi there")
+
+
+@bot.command(name="mmm")
+async def _mmm(ctx, arg):
+    message = ctx.message.content.split(
+        f"{os.environ['BOT_COMMAND_PREFIX'].strip()}mmm"
+    )[1].strip()
+    if "says" not in message:
+        await ctx.send("What do they say?")
+        return
+
+    search_term = message.split("says")[0].strip()
+    meme_text = message.split("says")[1].strip()
+    if "/" not in meme_text:
+        await ctx.send("Gotta split meme text with dat slash (/)")
+        return
+
+    meme_top_text = meme_text.split("/")[0].strip()
+    meme_bot_text = meme_text.split("/")[1].strip()
+    meme = find_meme(search_term)
+    if meme is None:
+        await ctx.send(
+            f"Your meme ({search_term}) isn't in the library yet (https://github.com/lukaszdz/cama-community/blob/main/meme.py)"
+        )
+        return
+
+    try:
+        img = build_meme(meme["templateID"], meme_top_text, meme_bot_text)
+        await ctx.send(img)
+    except Exception:
+        await ctx.send(random.choice(responses.PISSED))
 
 
 @api.get("/")
