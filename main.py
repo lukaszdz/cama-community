@@ -26,6 +26,7 @@ from sheets import (
     distribute_coin_to_camarron_with_name,
     get_balance_for_name,
     spend_coin,
+    sacrifice
 )
 
 dictConfig(log_config)
@@ -243,6 +244,21 @@ async def _mint(ctx, arg):
             distribute_coin_to_camarron_with_name(mention.display_name)
             await play_blacksmith(ctx)
 
+
+@bot.command(name="sacrifice")
+async def _sacrifice(ctx):
+    author_roles = [r.name for r in ctx.author.roles]
+    feeling_sassy = random.randint(0, 100) > 95
+    if feeling_sassy and "Gold" not in author_roles and "admin" not in author_roles:
+        await ctx.send(random.choice(responses.PISSED))
+        return
+
+    successfully_spent = sacrifice(ctx.author.display_name)
+    if successfully_spent >= 0:
+        play_cash_register(ctx)
+        await ctx.send(f"You've sacrificed {successfully_spent} JopaCoin(s)!")
+    else:
+        await ctx.send("Insufficient JopaCoin(s) for transaction.")
 
 @bot.command(name="scream")
 async def _scream(ctx):
