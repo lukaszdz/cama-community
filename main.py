@@ -196,9 +196,9 @@ async def _tip(ctx):
                 wager = int(message.split("wager")[1].strip())
                 bettor_balance = get_balance_for_name(ctx.author.display_name)
                 bettee_balance = get_balance_for_name(mention.display_name)
-                if wager > bettor_balance:
+                if wager > int(bettor_balance):
                     return await ctx.send(f"You're too poor to wager J{wager} with only J{bettor_balance}!")
-                if wager > bettee_balance: 
+                if wager > int(bettee_balance): 
                     return await ctx.send(f"They cant afford to match your big J{wager} bet, with only J{bettee_balance}!")
                 wagers.update({ctx.author.display_name: {'amt': wager, 'bettee': mention.display_name, 'accepted': False}})
                 await ctx.send(f"@{mention.display_name} has bet you {wager} JopaCoin. To accept, enter '!accept {ctx.author.display_name}'")
