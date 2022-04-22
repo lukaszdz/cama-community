@@ -8,7 +8,7 @@ import os.path
 import random
 import string
 import time
-from logging.config import dictConfig
+from datetime import datetime
 
 import discord  # type: ignore
 import uvicorn  # type: ignore
@@ -20,7 +20,6 @@ from pydantic import BaseModel
 from redis import Redis
 
 import responses
-from log import log_config
 from meme import build_meme, find_meme
 from sheets import (
     distribute_coin_to_camarron_with_name,
@@ -28,7 +27,21 @@ from sheets import (
     spend_coin,
 )
 
-dictConfig(log_config)
+logging.basicConfig(
+    format="%(custom_attribute)s:%(levelname)s\t%(asctime)s\t%(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+old_factory = logging.getLogRecordFactory()
+
+
+def record_factory(*args, **kwargs):
+    record = old_factory(*args, **kwargs)
+    record.custom_attribute = os.environ["ENV"].upper()
+    return record
+
+
+logging.setLogRecordFactory(record_factory)
+logger = logging.getLogger()
 
 
 class InteractionType:
@@ -44,18 +57,17 @@ class Ping(BaseModel):
 
 
 api = FastAPI(debug=True)
-logger = logging.getLogger("cama-logger")
 
 
 @api.middleware("http")
 async def add_process_time_header(request: Request, call_next):
     idem = "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
-    logger.info(f"rid={idem} start request path={request.url.path}")
+    await dlog(f"rid={idem} start request path={request.url.path}")
     start_time = time.time()
     response = await call_next(request)
     process_time = time.time() - start_time
     formatted_process_time = "{0:.2f}".format(process_time)
-    logger.info(
+    await dlog(
         f"rid={idem} completed_in={formatted_process_time}ms status_code={response.status_code}"
     )
     response.headers["X-Process-Time"] = str(process_time)
@@ -69,15 +81,28 @@ intents.members = False
 bot = Bot(command_prefix=os.environ["BOT_COMMAND_PREFIX"].strip(), intents=intents)
 
 
+async def dlog(msg):
+    logger.info(msg)
+    try:
+        channel = bot.get_channel(int(os.environ["DISCORD_LOGGING_CHANNEL"]))
+        now = datetime.now()
+        dt_string = now.strftime("%Y-%m-%d %H:%M:%S")
+        fmt_msg = f"{os.environ['ENV'].upper()}:INFO\t{dt_string}\t{msg}"
+        await channel.send(fmt_msg)
+    except Exception as e:
+        logger.error(f"Unable to log to discord: {str(e)}")
+
+
 @bot.check
 async def debugging_middleware(ctx):
-    logger.info(f"{ctx.author.name} requested {ctx.invoked_with} from {ctx.me.name}")
+    log_msg = f"{ctx.author.name} requested {ctx.invoked_with} from {ctx.me.name}"
+    await dlog(log_msg)
     return True
 
 
 @bot.event
 async def on_ready():
-    logger.info(f"Logged in as {bot.user.name}")
+    await dlog(f"Logged in as {bot.user.name}")
 
 
 def test_redis_connection():
@@ -104,7 +129,7 @@ async def make_noise_in_current_channel(context, sound_file):
         if not context.voice_client.is_playing():
             context.voice_client.play(audio_source, after=None)
     except Exception as e:
-        logger.warn(f"Error playing sound file: {str(e)}")
+        dlog(f"Error playing sound file: {str(e)}")
 
 
 async def play_cash_register(context):
@@ -328,7 +353,7 @@ async def load_opus():
         opus_path = ctypes.util.find_library("opus")
         discord.opus.load_opus(opus_path)
     except Exception:
-        logger.warn("Failed to initialize opus (for playing audio)")
+        dlog("Failed to initialize opus (for playing audio)")
 
 
 @api.on_event("startup")
@@ -340,12 +365,12 @@ async def startup_event():
     caches.set(CACHE_KEY, redis_cache_backend)
 
     await asyncio.sleep(4)  # optional sleep for established connection with discord
-    logger.info(f"{bot.user} has connected to Discord!")
+    await dlog(f"{bot.user} has connected to Discord!")
 
 
 @api.on_event("shutdown")
 async def on_shutdown() -> None:
-    logger.info("Shutting down.")
+    await dlog("Shutting down.")
     await close_caches()
 
 

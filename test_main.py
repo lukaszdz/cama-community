@@ -16,6 +16,8 @@ def mock_settings_env_vars():
             "AUDIO_ENABLED": "0",
             "DISCORD_BOT_TOKEN": "this-is-a-mock-token",
             "BOT_COMMAND_PREFIX": "?",
+            "DISCORD_LOGGING_CHANNEL": "13333333333337",
+            "ENV": "test",
         },
     ):
         yield
