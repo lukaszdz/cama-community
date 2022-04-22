@@ -201,7 +201,7 @@ async def _tip(ctx):
                 if wager > int(bettee_balance): 
                     return await ctx.send(f"They cant afford to match your big J{wager} bet, with only J{bettee_balance}!")
                 wagers.update({ctx.author.display_name: {'amt': wager, 'bettee': mention.display_name, 'accepted': False}})
-                await ctx.send(f"@{mention.display_name} has bet you {wager} JopaCoin. To accept, enter '!accept {ctx.author.display_name}'")
+                await ctx.send(f"{ctx.author.display_name} has bet {mention.display_name} {wager} JopaCoin. To accept, enter '!accept @{ctx.author.display_name}'")
             except Exception as e:
                 logger.warn(e)
                 return await ctx.send(f"Please wager a valid amount!")
@@ -215,7 +215,7 @@ async def _accept(ctx):
     if len(mentions) > 1:
         return await ctx.send("You can only accept a bet with one person!")
     mention = mentions[0]
-    if mention in wagers:
+    if mention.display_name in wagers:
         wager = wagers[f"{mention.display_name}"]
         if ctx.author.display_name in wager['bettee']:
             wager['accepted'] = True
