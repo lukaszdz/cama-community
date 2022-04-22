@@ -234,7 +234,24 @@ def send_coin(sender: str, sendee: str):
                 cama = camas[sendee]
                 cama["Coinz"] = int(cama["Coinz"]) + 1            
                 update_cama_data(config, sendee, cama)
-    return True     
+    return True   
+
+def transfer_coins(sender: str, recipient: str, amt: int):
+    config = dict(os.environ)
+    camas = get_camarrons(config)
+    if sender not in camas:
+        return False
+    else:
+        cama = camas[sender]
+        cama["Coinz"] = int(cama["Coinz"]) - amt
+        update_cama_data(config, sender, cama)
+        if recipient not in camas:
+            new_cama_data(config, recipient)
+        else:
+            cama = camas[recipient]
+            cama["Coinz"] = int(cama["Coinz"]) + amt           
+            update_cama_data(config, recipient, cama)
+        return True       
 
 
 def get_balance_for_name(name: str) -> int:
