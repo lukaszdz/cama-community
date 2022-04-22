@@ -234,7 +234,7 @@ async def _honor(ctx):
     if len(mentions) > 1:
         return await ctx.send("You can only resolve one bet!")
     mention = mentions[0]
-    if mention in wagers:
+    if mention.display_name in wagers:
         wager = wagers[f"{mention.display_name}"]
         logger.info(wager)
         if wager['accepted']:
