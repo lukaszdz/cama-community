@@ -202,7 +202,8 @@ async def _tip(ctx):
                     return await ctx.send(f"They cant afford to match your big J{wager} bet, with only J{bettee_balance}!")
                 wagers.update({ctx.author.display_name: {'amt': wager, 'bettee': mention.display_name, 'accepted': False}})
                 await ctx.send(f"@{mention.display_name} has bet you {wager} JopaCoin. To accept, enter '!accept {ctx.author.display_name}'")
-            except Exception:
+            except Exception as e:
+                logger.warn(e)
                 return await ctx.send(f"Please wager a valid amount!")
         
 
