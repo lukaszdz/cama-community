@@ -236,6 +236,7 @@ async def _honor(ctx):
     mention = mentions[0]
     if mention in wagers:
         wager = wagers[f"{mention.display_name}"]
+        logger.info(wager)
         if wager['accepted']:
             message = ctx.message.content.split(
             f"{os.environ['BOT_COMMAND_PREFIX'].strip()}honor"
