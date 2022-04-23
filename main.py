@@ -238,18 +238,23 @@ async def _honor(ctx):
         wager = wagers[f"{mention.display_name}"]
         logger.info(wager)
         if wager['accepted']:
-            message = ctx.message.content.split(
-            f"{os.environ['BOT_COMMAND_PREFIX'].strip()}honor"
-            )[1].strip()
-            won_lost = message.split(f"{mention.display_name}")[1].strip()
-            if "won" in won_lost and "lost" not in won_lost:
-                sent = transfer_coins(wager['bettee'], mention.display_name, wager['amt'])
-                if sent:
-                    return await ctx.send(f"{mention.display_name} won their bet against {wager['bettee']}!")
-            elif "won" not in won_lost and 'lost' in won_lost:
-                sent = transfer_coins(mention.display_name, wager['bettee'], wager['amt'])
-                if sent:
-                    return await ctx.send(f"{wager['bettee']} won their bet against {mention.display_name}!")
+            try:
+                message = ctx.message.content.split(
+                f"{os.environ['BOT_COMMAND_PREFIX'].strip()}honor"
+                )[1].strip()
+                won_lost = message.split(f"{mention.display_name}")[1].strip()
+                if "won" in won_lost and "lost" not in won_lost:
+                    sent = transfer_coins(wager['bettee'], mention.display_name, wager['amt'])
+                    logger.info(f"sent to {mention.display_name}: {sent}")
+                    if sent:
+                        return await ctx.send(f"{mention.display_name} won their bet against {wager['bettee']}!")
+                elif "won" not in won_lost and 'lost' in won_lost:
+                    sent = transfer_coins(mention.display_name, wager['bettee'], wager['amt'])
+                    logger.info(f"sent to {wager['bettee']}: {sent}")
+                    if sent:
+                        return await ctx.send(f"{wager['bettee']} won their bet against {mention.display_name}!")
+            except Exception as e:
+                logger.info(f"{e}")
             else:
                 return await ctx.send(f"Stop trolling, {ctx.author.display_name}")
         else:

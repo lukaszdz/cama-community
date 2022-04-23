@@ -247,10 +247,10 @@ def transfer_coins(sender: str, recipient: str, amt: int):
         update_cama_data(config, sender, cama)
         if recipient not in camas:
             new_cama_data(config, recipient)
-        else:
-            cama = camas[recipient]
-            cama["Coinz"] = int(cama["Coinz"]) + amt           
-            update_cama_data(config, recipient, cama)
+            camas = get_camarrons(config)
+        cama = camas[recipient]
+        cama["Coinz"] = int(cama["Coinz"]) + amt           
+        update_cama_data(config, recipient, cama)
         return True       
 
 
