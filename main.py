@@ -25,7 +25,11 @@ from sheets import (
     distribute_coin_to_camarron_with_name,
     get_balance_for_name,
     spend_coin,
+    sacrifice,
+    transfer_coins
 )
+
+wagers = dict()
 
 logging.basicConfig(
     format="%(custom_attribute)s:%(levelname)s\t%(asctime)s\t%(message)s",
@@ -42,7 +46,6 @@ def record_factory(*args, **kwargs):
 
 logging.setLogRecordFactory(record_factory)
 logger = logging.getLogger()
-
 
 class InteractionType:
     PING = 1
@@ -193,6 +196,97 @@ async def _tip(ctx):
         else:
             await ctx.send("Insufficient JopaCoin(s) for transaction.")
 
+@bot.command(name="bet")
+async def _tip(ctx):
+    author_roles = [r.name for r in ctx.author.roles]
+    feeling_sassy = random.randint(0, 100) > 95
+    if feeling_sassy and "Gold" not in author_roles and "admin" not in author_roles:
+        await ctx.send(random.choice(responses.PISSED))
+        return
+    mentions = ctx.message.mentions
+    if len(mentions) == 0:
+        return await ctx.send("You bet nobody, try again!")
+    if len(mentions) > 1:
+        return await ctx.send("You can only bet with one person!")
+    else:
+        message = ctx.message.content.split(
+            f"{os.environ['BOT_COMMAND_PREFIX'].strip()}bet"
+        )[1].strip()
+        if "wager" not in message:
+            return await ctx.send(f"Please wager an amount!")
+        else:
+            mention = mentions[0]
+            try:
+                wager = int(message.split("wager")[1].strip())
+                bettor_balance = get_balance_for_name(ctx.author.display_name)
+                bettee_balance = get_balance_for_name(mention.display_name)
+                if wager > int(bettor_balance):
+                    return await ctx.send(f"You're too poor to wager J{wager} with only J{bettor_balance}!")
+                if wager > int(bettee_balance): 
+                    return await ctx.send(f"They cant afford to match your big J{wager} bet, with only J{bettee_balance}!")
+                wagers.update({ctx.author.display_name: {'amt': wager, 'bettee': mention.display_name, 'accepted': False}})
+                await ctx.send(f"{ctx.author.display_name} has bet {mention.display_name} {wager} JopaCoin. To accept, enter '!accept @{ctx.author.display_name}'")
+            except Exception as e:
+                logger.warn(e)
+                return await ctx.send(f"Please wager a valid amount!")
+        
+
+@bot.command(name="accept")                   
+async def _accept(ctx):
+    mentions = ctx.message.mentions
+    if len(mentions) == 0:
+        return await ctx.send("You forgot the other bettor's name, try again!")
+    if len(mentions) > 1:
+        return await ctx.send("You can only accept a bet with one person!")
+    mention = mentions[0]
+    if mention.display_name in wagers:
+        wager = wagers[f"{mention.display_name}"]
+        if ctx.author.display_name in wager['bettee']:
+            wager['accepted'] = True
+            return await ctx.send(f"Bet accepted! When this bet has concluded, enter '!honor {mention.display_name} won/lost'")
+        else:
+            return await ctx.send("Not so fast! This isn't your bet!")
+    else:
+        return await ctx.send("I have no memory of this bet!")
+
+
+@bot.command(name="honor")
+async def _honor(ctx):
+    mentions = ctx.message.mentions
+    if len(mentions) == 0:
+        return await ctx.send("You forgot the bettor's name, try again!")
+    if len(mentions) > 1:
+        return await ctx.send("You can only resolve one bet!")
+    mention = mentions[0]
+    if mention.display_name in wagers:
+        wager = wagers[f"{mention.display_name}"]
+        dlog(wager)
+        if wager['accepted']:
+            try:
+                message = ctx.message.content.split(
+                f"{os.environ['BOT_COMMAND_PREFIX'].strip()}honor"
+                )[1].strip()
+                won_lost = message.split(f"{mention.display_name}")[1].strip()
+                if "won" in won_lost and "lost" not in won_lost:
+                    sent = transfer_coins(wager['bettee'], mention.display_name, wager['amt'])
+                    dlog(f"sent to {mention.display_name}: {sent}")
+                    if sent:
+                        return await ctx.send(f"{mention.display_name} won their bet against {wager['bettee']}!")
+                elif "won" not in won_lost and 'lost' in won_lost:
+                    sent = transfer_coins(mention.display_name, wager['bettee'], wager['amt'])
+                    dlog(f"sent to {wager['bettee']}: {sent}")
+                    if sent:
+                        return await ctx.send(f"{wager['bettee']} won their bet against {mention.display_name}!")
+            except Exception as e:
+                dlog(f"{e}")
+            else:
+                return await ctx.send(f"Stop trolling, {ctx.author.display_name}")
+        else:
+            return await ctx.send(f"Nice try, {wager['bettee']} never accepted the bet!")
+    else: 
+        return await ctx.send(f"Nice try, {mention} never made a bet!")
+    
+
 
 @bot.command(name="reserves")
 async def _reserves(ctx):
@@ -268,6 +362,21 @@ async def _mint(ctx, arg):
             distribute_coin_to_camarron_with_name(mention.display_name)
             await play_blacksmith(ctx)
 
+
+@bot.command(name="sacrifice")
+async def _sacrifice(ctx):
+    author_roles = [r.name for r in ctx.author.roles]
+    feeling_sassy = random.randint(0, 100) > 95
+    if feeling_sassy and "Gold" not in author_roles and "admin" not in author_roles:
+        await ctx.send(random.choice(responses.PISSED))
+        return
+
+    successfully_spent = sacrifice(ctx.author.display_name)
+    if successfully_spent >= 0:
+        play_cash_register(ctx)
+        await ctx.send(f"You've sacrificed {successfully_spent} JopaCoin(s)!")
+    else:
+        await ctx.send("Insufficient JopaCoin(s) for transaction.")
 
 @bot.command(name="scream")
 async def _scream(ctx):

@@ -4,6 +4,7 @@ import os
 from math import floor
 from string import ascii_uppercase
 from typing import List, Tuple
+import random
 
 import pandas as pd  # type: ignore
 from google.oauth2 import service_account  # type: ignore
@@ -197,6 +198,60 @@ def spend_coin(name: str):
     update_cama_data(config, "TREASURY", cama)
 
     return True
+
+def sacrifice(name: str):
+    config = dict(os.environ)
+    camas = get_camarrons(config)
+    if name not in camas:
+        return -1
+    cama = camas[name]
+    if int(cama["Coinz"]) <= 0:
+        return -1
+    sacrifice_amt = random.randint(0, int(cama["Coinz"]))        
+    cama["Coinz"] = int(cama["Coinz"]) - sacrifice_amt
+    update_cama_data(config, name, cama)
+    cama = camas["TREASURY"]
+    cama["Coinz"] = int(cama["Coinz"]) + sacrifice_amt
+    update_cama_data(config, "TREASURY", cama)
+
+    return sacrifice_amt
+
+def send_coin(sender: str, sendee: str):
+    config = dict(os.environ)
+    camas = get_camarrons(config)
+    if spend_coin("TREASURY") is True:
+        if sender not in camas:
+            return False
+        else:
+            cama = camas[sender]
+            if int(cama["Coinz"]) <= 0:
+                return False
+            cama["Coinz"] = int(cama["Coinz"]) - 1
+            update_cama_data(config, sender, cama)
+            if sendee not in camas:
+                new_cama_data(config, sendee)
+            else:
+                cama = camas[sendee]
+                cama["Coinz"] = int(cama["Coinz"]) + 1            
+                update_cama_data(config, sendee, cama)
+    return True   
+
+def transfer_coins(sender: str, recipient: str, amt: int):
+    config = dict(os.environ)
+    camas = get_camarrons(config)
+    if sender not in camas:
+        return False
+    else:
+        cama = camas[sender]
+        cama["Coinz"] = int(cama["Coinz"]) - amt
+        update_cama_data(config, sender, cama)
+        if recipient not in camas:
+            new_cama_data(config, recipient)
+            camas = get_camarrons(config)
+        cama = camas[recipient]
+        cama["Coinz"] = int(cama["Coinz"]) + amt           
+        update_cama_data(config, recipient, cama)
+        return True       
 
 
 def get_balance_for_name(name: str) -> int:
